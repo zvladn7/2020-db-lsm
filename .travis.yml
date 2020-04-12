@@ -5,7 +5,7 @@ jdk: openjdk11
 
 env:
    global:
-   - _JAVA_OPTIONS="-Xmx128m"
+   - _JAVA_OPTIONS="-Xms128m -Xmx128m"
 
 script: ./gradlew --info test
 
