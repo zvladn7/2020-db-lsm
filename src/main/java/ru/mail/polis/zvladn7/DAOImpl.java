@@ -10,19 +10,17 @@ import java.util.Iterator;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-public class ImplDAO implements DAO {
+public class DAOImpl implements DAO {
 
     private final SortedMap<ByteBuffer, ByteBuffer> sortedMap = new TreeMap<>();
 
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
-        final boolean isDropWhile = sortedMap.containsKey(from);
-        return sortedMap
+        return sortedMap.tailMap(from)
                 .entrySet()
                 .stream()
                 .map(entry -> Record.of(entry.getKey(), entry.getValue()))
-                .dropWhile(record -> isDropWhile && !record.getKey().equals(from))
                 .iterator();
     }
 

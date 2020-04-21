@@ -17,7 +17,7 @@
 package ru.mail.polis;
 
 import org.jetbrains.annotations.NotNull;
-import ru.mail.polis.zvladn7.ImplDAO;
+import ru.mail.polis.zvladn7.DAOImpl;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,6 +54,6 @@ public final class DAOFactory {
             throw new IllegalArgumentException("Path is not a directory: " + data);
         }
 
-        return new ImplDAO();
+        return new DAOImpl();
     }
 }
