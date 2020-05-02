@@ -41,7 +41,7 @@ public class SSTable implements Table {
              //get offsets
              final int offsetsArrayPosition = fileSize - INT_BYTES - INT_BYTES * amountOfElements;
              IntBuffer offsetsBuffer = fileByteBuffer
-                     .duplicate()
+                     .rewind()
                      .position(offsetsArrayPosition)
                      .limit(amountOfElementsPosition)
                      .slice()
@@ -52,7 +52,7 @@ public class SSTable implements Table {
 
              //get elements
              elements = fileByteBuffer
-                     .duplicate()
+                     .rewind()
                      .position(0)
                      .limit(offsetsArrayPosition)
                      .slice()
@@ -100,21 +100,21 @@ public class SSTable implements Table {
                 final int keySize = key.remaining();
                 int offset = keySize + INT_BYTES * 2 + LONG_BYTES;
 
-                fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(keySize));
+                fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(keySize).rewind());
                 fileChannel.write(key);
                 fileChannel.write(ByteBuffer.allocate(LONG_BYTES).putLong(value.getTimestamp()));
                 if (value.isTombstone()) {
-                    fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(-1));
+                    fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(-1).rewind());
                 } else {
                     final int valueSize = value.getData().remaining();
-                    fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(valueSize));
+                    fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(valueSize).rewind());
                     fileChannel.write(value.getData());
 
                     offset += valueSize;
                 }
                 offsetsAndAmountBuffer.putInt(offset);
             }
-            offsetsAndAmountBuffer.putInt(amount);
+            offsetsAndAmountBuffer.putInt(amount).rewind();
 
             fileChannel.write(offsetsAndAmountBuffer);
         }
