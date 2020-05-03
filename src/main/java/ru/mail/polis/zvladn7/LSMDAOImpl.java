@@ -39,7 +39,8 @@ public class LSMDAOImpl implements DAO {
             files.filter(file -> file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
                         try {
-                            final String fileName = file.toString();
+                            final String fileName = file.getFileName().toString();
+                            System.out.println(fileName);
                             final int gen = Integer.parseInt(fileName.substring(0, fileName.indexOf(SSTABLE_FILE_POSTFIX)));
                             generation = Math.max(gen, generation);
                             ssTables.put(gen, new SSTable(file.toFile()));
@@ -47,7 +48,9 @@ public class LSMDAOImpl implements DAO {
                             e.printStackTrace();
                         }
                     });
+            generation++;
         }
+
     }
 
     @NotNull
