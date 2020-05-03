@@ -102,7 +102,7 @@ public class SSTable implements Table {
                 offset += keySize + INT_BYTES * 2 + LONG_BYTES;
 
                 fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(keySize).rewind());
-                fileChannel.write(key);
+                fileChannel.write(key.duplicate());
                 fileChannel.write(ByteBuffer.allocate(LONG_BYTES).putLong(value.getTimestamp()).rewind());
                 if (value.isTombstone()) {
                     fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(-1).rewind());
@@ -110,7 +110,7 @@ public class SSTable implements Table {
                     final ByteBuffer valueBuffer = value.getData();
                     final int valueSize = valueBuffer.remaining();
                     fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(valueSize).rewind());
-                    fileChannel.write(valueBuffer);
+                    fileChannel.write(valueBuffer.duplicate());
                     offset += valueSize;
                 }
             }
@@ -126,22 +126,25 @@ public class SSTable implements Table {
         }
     }
 
-    private ByteBuffer getPositionElement(final int position) {
+    private ByteBuffer getPositionElement(final int position) throws IOException {
         final int keyLengthOffset = offsets[position];
         final int keySize = elements.getInt(keyLengthOffset);
         final int keyOffset = keyLengthOffset + INT_BYTES;
+        final ByteBuffer keyBuf = ByteBuffer.allocate(keySize);
+//        fileChannel.read(keyBuf,keyLengthOffset);
         return elements.duplicate()
                 .position(keyOffset)
                 .limit(keyOffset + keySize)
                 .slice();
     }
 
-    private int getElementPosition(final ByteBuffer key) {
+    private int getElementPosition(final ByteBuffer key) throws IOException {
         int left = 0;
         int right = amountOfElements - 1;
         while (left <= right) {
             final int mid = (left + right) / 2;
-            final int compareResult = key.compareTo(getPositionElement(mid));
+            final ByteBuffer midKey = getPositionElement(mid);
+            final int compareResult = key.compareTo(midKey);
 
             if (compareResult > 0) {
                 left = mid + 1;
@@ -206,7 +209,11 @@ public class SSTable implements Table {
         private int position;
 
         public SSTableIter(final ByteBuffer from) {
-            position = getElementPosition(from.rewind());
+            try {
+                position = getElementPosition(from.rewind());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
