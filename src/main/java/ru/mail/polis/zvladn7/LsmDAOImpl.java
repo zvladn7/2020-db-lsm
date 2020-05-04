@@ -40,10 +40,9 @@ public class LsmDAOImpl implements DAO {
     private int generation;
 
     /**
-     * LSM DAO implementation
-     *
-     * @param storage - the directory where SSTables stored
-     * @param amountOfBytesToFlush - amount of bytes that need to flush current memory table
+     * LSM DAO implementation.
+     * @param storage - the directory where SSTables stored.
+     * @param amountOfBytesToFlush - amount of bytes that need to flush current memory table.
      */
     public LsmDAOImpl(@NotNull final File storage, final int amountOfBytesToFlush) throws IOException {
         this.storage = storage;

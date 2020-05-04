@@ -21,7 +21,7 @@ public class SSTable implements Table {
     private final FileChannel fileChannel;
 
     /**
-     * File structure
+     * File structure.
      * * [ rows ]
      * * [ rows offset ]
      * * amount of rows
@@ -138,7 +138,7 @@ public class SSTable implements Table {
     }
 
     /**
-     * Cell(a row of file) structure:
+     * Cell(a row of file) structure.
      * key size | key | timestamp | value size | value
      * if value size is 0 than value is absent
      */
