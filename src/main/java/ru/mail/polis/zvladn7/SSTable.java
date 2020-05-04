@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 
 public class SSTable implements Table {
 
-//    private final static Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
+    private final static Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
 
     private final int shiftToOffsetsArray;
     private final int amountOfElements;
@@ -54,11 +54,6 @@ public class SSTable implements Table {
     @Override
     public void remove(@NotNull ByteBuffer key) {
         throw new UnsupportedOperationException("SSTable doesn't provide remove operations!");
-    }
-
-    @Override
-    public boolean isFull() {
-        throw new UnsupportedOperationException("SSTable doesn't provide isFull operations!");
     }
 
     @Override
@@ -187,7 +182,7 @@ public class SSTable implements Table {
             try {
                 position = getElementPosition(from.rewind());
             } catch (IOException e) {
-//                log.info("SSTable's iterator cannot correctly get 'from' position");
+                log.info("SSTable's iterator cannot correctly get 'from' position");
             }
         }
 
@@ -201,7 +196,7 @@ public class SSTable implements Table {
             try {
                 return get(position++);
             } catch (IOException e) {
-//                log.info("SSTable's iterator cannot get a cell because it has no more elements");
+                log.info("SSTable's iterator cannot get a cell because it has no more elements");
                 throw new NoSuchElementException();
             }
         }
@@ -212,7 +207,7 @@ public class SSTable implements Table {
         try {
             fileChannel.close();
         } catch (IOException e) {
-//            log.warning("The error was happened when the file channel was closed");
+            log.warning("The error was happened when the file channel was closed");
         }
     }
 }

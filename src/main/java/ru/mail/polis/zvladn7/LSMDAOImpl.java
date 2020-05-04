@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 public class LSMDAOImpl implements DAO {
 
-//    private static final Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
+    private static final Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
 
     private static final String SSTABLE_FILE_POSTFIX = ".dat";
     private static final String SSTABLE_TEMPORARY_FILE_POSTFIX = ".tmp";
@@ -50,9 +50,9 @@ public class LSMDAOImpl implements DAO {
                             ssTables.put(gen, new SSTable(file.toFile()));
                         } catch (IOException e) {
                             e.printStackTrace();
-//                            log.info("Something went wrong while the SSTable was created!");
+                            log.info("Something went wrong while the SSTable was created!");
                         } catch (NumberFormatException e) {
-//                            log.info("Unexpected name of SSTable file: " + fileName);
+                            log.info("Unexpected name of SSTable file: " + fileName);
                         }
                     });
             generation++;
@@ -69,7 +69,7 @@ public class LSMDAOImpl implements DAO {
             try {
                 iters.add(ssTable.iterator(from));
             } catch (IOException e) {
-//                log.info("Something went wrong when the SSTable iterator was added to list iter!");
+                log.info("Something went wrong when the SSTable iterator was added to list iter!");
             }
         });
 
@@ -112,7 +112,7 @@ public class LSMDAOImpl implements DAO {
         Files.move(file.toPath(), dst.toPath(), StandardCopyOption.ATOMIC_MOVE);
         ++generation;
         ssTables.put(generation, new SSTable(dst));
-        memtable.close();// = new MemoryTable();
+        memtable.close();
     }
 
 }

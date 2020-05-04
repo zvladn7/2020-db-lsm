@@ -2,7 +2,6 @@ package ru.mail.polis.zvladn7;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.SortedMap;
@@ -12,16 +11,10 @@ public class MemoryTable implements Table {
 
     private final SortedMap<ByteBuffer, Value> map = new TreeMap<>();
 
-//    private final long amountOfBytesToFlush;
     private int currentAmountOfBytes;
 
     public MemoryTable() {
         this.currentAmountOfBytes = 0;
-    }
-
-    public boolean isFull() {
-//        return currentAmountOfBytes >= amountOfBytesToFlush;
-        throw new UnsupportedOperationException();
     }
 
     public int getSize() {

@@ -15,8 +15,6 @@ public interface Table {
 
     void remove(@NotNull ByteBuffer key);
 
-    boolean isFull();
-
     int size();
 
     void close();
