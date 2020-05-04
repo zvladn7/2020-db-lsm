@@ -24,7 +24,7 @@ public class Value implements Comparable<Value>{
 
     @NotNull
     ByteBuffer getData() {
-        return data;
+        return data.asReadOnlyBuffer();
     }
 
     @NotNull

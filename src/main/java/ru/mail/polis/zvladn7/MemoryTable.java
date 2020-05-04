@@ -30,7 +30,7 @@ public class MemoryTable implements Table {
 
     @NotNull
     @Override
-    public Iterator<Cell> iterator(@NotNull ByteBuffer from) throws IOException {
+    public Iterator<Cell> iterator(@NotNull ByteBuffer from) {
         return map.tailMap(from)
                 .entrySet()
                 .stream()
@@ -39,13 +39,14 @@ public class MemoryTable implements Table {
     }
 
     @Override
-    public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
-        if (map.containsKey(key)) {
+    public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+        Value val = map.get(key);
+        if (val == null) {
             currentAmountOfBytes += key.remaining() + value.remaining() + Long.BYTES;
         } else {
-            currentAmountOfBytes += value.remaining() + Long.BYTES;
+            currentAmountOfBytes += value.remaining() - val.getData().remaining();
         }
-        map.put(key, new Value(System.currentTimeMillis(), value));
+        map.put(key.duplicate(), new Value(System.currentTimeMillis(), value.duplicate()));
     }
 
     @Override
@@ -57,7 +58,7 @@ public class MemoryTable implements Table {
             currentAmountOfBytes += key.remaining() + Long.BYTES;
         }
 
-        map.put(key, new Value(System.currentTimeMillis()));
+        map.put(key.duplicate(), new Value(System.currentTimeMillis()));
     }
 
     @Override
@@ -69,5 +70,6 @@ public class MemoryTable implements Table {
     @Override
     public void close() {
         map.clear();
+        currentAmountOfBytes = 0;
     }
 }

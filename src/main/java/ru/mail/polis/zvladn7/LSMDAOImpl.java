@@ -30,7 +30,7 @@ public class LSMDAOImpl implements DAO {
     private final File storage;
     private final int amountOfBytesToFlush;
 
-    private final MemoryTable memtable;
+    private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
 
     private int generation = 0;
@@ -112,7 +112,7 @@ public class LSMDAOImpl implements DAO {
         Files.move(file.toPath(), dst.toPath(), StandardCopyOption.ATOMIC_MOVE);
         ++generation;
         ssTables.put(generation, new SSTable(dst));
-        memtable.close();
+        memtable.close();// = new MemoryTable();
     }
 
 }
