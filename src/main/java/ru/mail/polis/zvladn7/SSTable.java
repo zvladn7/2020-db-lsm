@@ -6,43 +6,38 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.logging.Logger;
 
 public class SSTable implements Table {
 
-    private static final int INT_BYTES = 4;
-    private static final int LONG_BYTES = 8;
+//    private final static Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
 
     private final int shiftToOffsetsArray;
     private final int amountOfElements;
     private final FileChannel fileChannel;
 
+
     /**
-     * File structure:
+     * File structure
      * * [ rows ]
      * * [ rows offset ]
      * * amount of rows
      *
      */
     SSTable(@NotNull final File file) throws IOException {
-         fileChannel =  FileChannel.open(file.toPath(), StandardOpenOption.READ);
-         final int fileSize = (int) fileChannel.size();
+        fileChannel =  FileChannel.open(file.toPath(), StandardOpenOption.READ);
+        final int fileSize = (int) fileChannel.size();
 
-         final ByteBuffer fileByteBuffer = ByteBuffer.allocate(fileSize);
-         fileChannel.read(fileByteBuffer);
-
-         //get amount
-//        final int amountOfElementsPosition = fileSize - INT_BYTES;
-//        amountOfElements = fileByteBuffer.getInt(amountOfElementsPosition);
-        final int amountOfElementsPosition = fileSize - INT_BYTES;
-        ByteBuffer offsetBuf = ByteBuffer.allocate(INT_BYTES);
-        fileChannel.read(offsetBuf, amountOfElementsPosition);
+        //get amount
+        ByteBuffer offsetBuf = ByteBuffer.allocate(Integer.BYTES);
+        fileChannel.read(offsetBuf, fileSize - Integer.BYTES);
         amountOfElements = offsetBuf.flip().getInt();
 
-
-        //get offsets
-        shiftToOffsetsArray = fileSize - INT_BYTES * (1 + amountOfElements);
+        shiftToOffsetsArray = fileSize - Integer.BYTES * (1 + amountOfElements);
     }
 
     @NotNull
@@ -74,53 +69,67 @@ public class SSTable implements Table {
     static void serialize(final File file, final Iterator<Cell> elementsIter, int amount) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE)) {
 
-            ByteBuffer offsetsAndAmountBuffer = ByteBuffer.allocate(INT_BYTES * (amount + 1));
+//            ByteBuffer offsetsAndAmountBuffer = ByteBuffer.allocate(Integer.BYTES * (amount + 1));
+            final List<Integer> offsets = new ArrayList<>();
             int offset = 0;
             while (elementsIter.hasNext()) {
                 final Cell cell = elementsIter.next();
                 final ByteBuffer key = cell.getKey();
                 final Value value = cell.getValue();
                 final int keySize = key.remaining();
-                offsetsAndAmountBuffer.putInt(offset);
-                offset += keySize + INT_BYTES * 2 + LONG_BYTES;
+                offsets.add(offset);
+//                offsetsAndAmountBuffer.putInt(offset);
+                offset += keySize + Integer.BYTES * 2 + Long.BYTES;
 
-                fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(keySize).rewind());
+                //write key size
+                ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+                fileChannel.write(buffer.putInt(keySize).flip());
+                buffer.clear();
+
+                //write key
                 fileChannel.write(key.duplicate());
-                fileChannel.write(ByteBuffer.allocate(LONG_BYTES).putLong(value.getTimestamp()).rewind());
+
+                //write timestamp
+                fileChannel.write(buffer.putLong(value.getTimestamp()).flip());
+                buffer.clear();
+
+
                 if (value.isTombstone()) {
-                    fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(-1).rewind());
+                    fileChannel.write(buffer.putInt(-1).flip());
                 } else {
                     final ByteBuffer valueBuffer = value.getData();
                     final int valueSize = valueBuffer.remaining();
-                    fileChannel.write(ByteBuffer.allocate(INT_BYTES).putInt(valueSize).rewind());
+                    fileChannel.write(buffer.putInt(valueSize).flip());
                     fileChannel.write(valueBuffer.duplicate());
                     offset += valueSize;
                 }
             }
 
-            fileChannel.write(offsetsAndAmountBuffer.putInt(amount).rewind());
+            ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+            for (final int i : offsets) {
+                fileChannel.write(buffer.putInt(i).flip());
+                buffer.clear();
+            }
+            fileChannel.write(buffer.putInt(amount).flip());
+//            fileChannel.write(offsetsAndAmountBuffer.putInt(amount).rewind());
         }
     }
 
-//    private void fillOffsets(IntBuffer offsetsBuffer) {
-//        offsets = new int[amountOfElements];
-//        for (int i = 0; i < offsets.length; ++i) {
-//            offsets[i] = offsetsBuffer.get(i);
-//        }
-//    }
+    private int getOffset(final int position) throws IOException {
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        fileChannel.read(buffer,shiftToOffsetsArray + position * Integer.BYTES);
+        return buffer.flip().getInt();
+    }
 
     private ByteBuffer getPositionElement(final int position) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(INT_BYTES);
-        fileChannel.read(buffer,shiftToOffsetsArray + position * INT_BYTES);
-        final int keyLengthOffset = buffer.flip().getInt();//offsets[position];
-        buffer.clear();
+        final int keyLengthOffset = getOffset(position);
 
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
         fileChannel.read(buffer, keyLengthOffset);
         final int keySize = buffer.flip().getInt();
 
-        final int keyOffset = keyLengthOffset + INT_BYTES;
         final ByteBuffer keyBuf = ByteBuffer.allocate(keySize);
-        fileChannel.read(keyBuf,keyOffset);
+        fileChannel.read(keyBuf,keyLengthOffset + Integer.BYTES);
 
         return keyBuf.flip();
     }
@@ -131,18 +140,18 @@ public class SSTable implements Table {
         while (left <= right) {
             final int mid = (left + right) / 2;
             final ByteBuffer midKey = getPositionElement(mid);
-            final int compareResult = key.compareTo(midKey);
+            final int compareResult = midKey.compareTo(key);
 
-            if (compareResult > 0) {
+            if (compareResult < 0) {
                 left = mid + 1;
-            } else if (compareResult < 0) {
+            } else if (compareResult > 0) {
                 right = mid - 1;
             } else {
                 return mid;
             }
         }
 
-        return amountOfElements + 1;
+        return left;
     }
 
     /**
@@ -154,15 +163,12 @@ public class SSTable implements Table {
      *
      */
     private Cell get(final int position) throws IOException {
-        final int lengthSizeOffset = shiftToOffsetsArray + position * INT_BYTES;
-        ByteBuffer buffer = ByteBuffer.allocate(INT_BYTES);
-        fileChannel.read(buffer, lengthSizeOffset);
-        final int elementOffset = buffer.flip().getInt();
-        buffer.clear();
+        final int elementOffset = getOffset(position);
 
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
         fileChannel.read(buffer, elementOffset);
         final int keySize = buffer.flip().getInt();
-        final int keyOffset = elementOffset + INT_BYTES;
+        final int keyOffset = elementOffset + Integer.BYTES;
         buffer.clear();
 
 
@@ -171,23 +177,19 @@ public class SSTable implements Table {
         key.flip();
 
         final int timestampOffset = keyOffset + keySize;
-        ByteBuffer timestampBuf = ByteBuffer.allocate(LONG_BYTES);
+        ByteBuffer timestampBuf = ByteBuffer.allocate(Long.BYTES);
         fileChannel.read(timestampBuf, timestampOffset);
         final long timestamp = timestampBuf.flip().getLong();
-//        final long timestamp = elements.getLong(timestampOffset);
 
-        final int valueSizeOffset = timestampOffset + LONG_BYTES;
-        fileChannel.read(buffer, valueSizeOffset);
+        fileChannel.read(buffer, timestampOffset + Long.BYTES);
         final int valueSize = buffer.flip().getInt();
-//        final int valueSize = elements.getInt();
 
         final Value value;
         if (valueSize == -1) {
             value = new Value(timestamp);
         } else {
-            final int valueOffset = timestampOffset + LONG_BYTES + INT_BYTES;
             ByteBuffer valueBuf = ByteBuffer.allocate(valueSize);
-            fileChannel.read(valueBuf, valueOffset);
+            fileChannel.read(valueBuf, timestampOffset + Long.BYTES + Integer.BYTES);
             valueBuf.flip();
             value = new Value(timestamp, valueBuf);
         }
@@ -203,7 +205,7 @@ public class SSTable implements Table {
             try {
                 position = getElementPosition(from.rewind());
             } catch (IOException e) {
-                e.printStackTrace();
+//                log.info("SSTable's iterator cannot correctly get 'from' position");
             }
         }
 
@@ -217,8 +219,18 @@ public class SSTable implements Table {
             try {
                 return get(position++);
             } catch (IOException e) {
+//                log.info("SSTable's iterator cannot get a cell because it has no more elements");
                 throw new NoSuchElementException();
             }
+        }
+    }
+
+    @Override
+    public void close() {
+        try {
+            fileChannel.close();
+        } catch (IOException e) {
+//            log.warning("The error was happened when the file channel was closed");
         }
     }
 }

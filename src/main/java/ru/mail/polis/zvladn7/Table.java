@@ -19,4 +19,5 @@ public interface Table {
 
     int size();
 
+    void close();
 }

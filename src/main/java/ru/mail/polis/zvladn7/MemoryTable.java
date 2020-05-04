@@ -10,20 +10,22 @@ import java.util.TreeMap;
 
 public class MemoryTable implements Table {
 
-    private final static int LONG_BYTES = 8;
-
     private final SortedMap<ByteBuffer, Value> map = new TreeMap<>();
 
-    private final long amountOfBytesToFlush;
-    private long currentAmountOfBytes;
+//    private final long amountOfBytesToFlush;
+    private int currentAmountOfBytes;
 
-    public MemoryTable(final long amountOfBytesToFlush) {
-        this.amountOfBytesToFlush = amountOfBytesToFlush;
+    public MemoryTable() {
         this.currentAmountOfBytes = 0;
     }
 
     public boolean isFull() {
-        return currentAmountOfBytes >= amountOfBytesToFlush;
+//        return currentAmountOfBytes >= amountOfBytesToFlush;
+        throw new UnsupportedOperationException();
+    }
+
+    public int getSize() {
+        return currentAmountOfBytes;
     }
 
     @NotNull
@@ -38,8 +40,12 @@ public class MemoryTable implements Table {
 
     @Override
     public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
+        if (map.containsKey(key)) {
+            currentAmountOfBytes += key.remaining() + value.remaining() + Long.BYTES;
+        } else {
+            currentAmountOfBytes += value.remaining() + Long.BYTES;
+        }
         map.put(key, new Value(System.currentTimeMillis(), value));
-        currentAmountOfBytes = key.remaining() + value.remaining() + LONG_BYTES;
     }
 
     @Override
@@ -48,7 +54,7 @@ public class MemoryTable implements Table {
         if (value != null && !value.isTombstone()) {
             currentAmountOfBytes -= value.getData().remaining();
         } else {
-            currentAmountOfBytes += key.remaining() + LONG_BYTES;
+            currentAmountOfBytes += key.remaining() + Long.BYTES;
         }
 
         map.put(key, new Value(System.currentTimeMillis()));
@@ -57,5 +63,11 @@ public class MemoryTable implements Table {
     @Override
     public int size() {
         return map.size();
+    }
+
+
+    @Override
+    public void close() {
+        map.clear();
     }
 }

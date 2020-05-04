@@ -3,7 +3,6 @@ package ru.mail.polis.zvladn7;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
-import java.util.Optional;
 
 public class Value implements Comparable<Value>{
     private final long timestamp;

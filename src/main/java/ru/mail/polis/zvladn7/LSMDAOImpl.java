@@ -14,38 +14,45 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 public class LSMDAOImpl implements DAO {
 
+//    private static final Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
+
     private static final String SSTABLE_FILE_POSTFIX = ".dat";
     private static final String SSTABLE_TEMPORARY_FILE_POSTFIX = ".tmp";
 
+    private static ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
+
     @NonNull
     private final File storage;
-    private final long amountOfBytesToFlush;
+    private final int amountOfBytesToFlush;
 
-    private Table memtable;
+    private final MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
 
     private int generation = 0;
 
-    public LSMDAOImpl(@NotNull final File storage, final long amountOfBytesToFlush) throws IOException {
+    public LSMDAOImpl(@NotNull final File storage, final int amountOfBytesToFlush) throws IOException {
         this.storage = storage;
         this.amountOfBytesToFlush = amountOfBytesToFlush;
-        this.memtable = new MemoryTable(amountOfBytesToFlush);
+        this.memtable = new MemoryTable();
         this.ssTables = new TreeMap<>();
         try (final Stream<Path> files = Files.list(storage.toPath())) {
-            files.filter(file -> file.toString().endsWith(SSTABLE_FILE_POSTFIX))
+            files.filter(file -> !file.toFile().isDirectory() && file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
+                        final String fileName = file.getFileName().toString();
                         try {
-                            final String fileName = file.getFileName().toString();
-                            System.out.println(fileName);
                             final int gen = Integer.parseInt(fileName.substring(0, fileName.indexOf(SSTABLE_FILE_POSTFIX)));
                             generation = Math.max(gen, generation);
                             ssTables.put(gen, new SSTable(file.toFile()));
                         } catch (IOException e) {
                             e.printStackTrace();
+//                            log.info("Something went wrong while the SSTable was created!");
+                        } catch (NumberFormatException e) {
+//                            log.info("Unexpected name of SSTable file: " + fileName);
                         }
                     });
             generation++;
@@ -62,7 +69,7 @@ public class LSMDAOImpl implements DAO {
             try {
                 iters.add(ssTable.iterator(from));
             } catch (IOException e) {
-                e.printStackTrace();
+//                log.info("Something went wrong when the SSTable iterator was added to list iter!");
             }
         });
 
@@ -76,7 +83,7 @@ public class LSMDAOImpl implements DAO {
     @Override
     public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
         memtable.upsert(key, value);
-        if (memtable.isFull()) {
+        if (memtable.getSize() > amountOfBytesToFlush) {
             flush();
         }
     }
@@ -84,7 +91,7 @@ public class LSMDAOImpl implements DAO {
     @Override
     public void remove(@NotNull ByteBuffer key) throws IOException {
         memtable.remove(key);
-        if (memtable.isFull()) {
+        if (memtable.getSize() > amountOfBytesToFlush) {
             flush();
         }
     }
@@ -94,17 +101,18 @@ public class LSMDAOImpl implements DAO {
         if (memtable.size() > 0) {
             flush();
         }
+        ssTables.values().forEach(Table::close);
     }
 
     private void flush() throws IOException {
-        String tmpName = generation + SSTABLE_TEMPORARY_FILE_POSTFIX;
         final File file = new File(storage, generation + SSTABLE_TEMPORARY_FILE_POSTFIX);
         file.createNewFile();
-        SSTable.serialize(file, memtable.iterator(ByteBuffer.allocate(0)), memtable.size());
+        SSTable.serialize(file, memtable.iterator(EMPTY_BUFFER), memtable.size());
         final File dst = new File(storage, generation + SSTABLE_FILE_POSTFIX);
         Files.move(file.toPath(), dst.toPath(), StandardCopyOption.ATOMIC_MOVE);
         ++generation;
         ssTables.put(generation, new SSTable(dst));
-        memtable = new MemoryTable(amountOfBytesToFlush);
+        memtable.close();
     }
+
 }

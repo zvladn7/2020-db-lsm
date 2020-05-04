@@ -12,7 +12,7 @@ public class Cell {
     private final ByteBuffer key;
     private final Value value;
 
-    public Cell(@NotNull ByteBuffer key, Value value) {
+    public Cell(@NotNull final ByteBuffer key, @NotNull final Value value) {
         this.key = key;
         this.value = value;
     }
