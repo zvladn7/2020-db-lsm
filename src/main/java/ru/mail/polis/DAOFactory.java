@@ -17,8 +17,7 @@
 package ru.mail.polis;
 
 import org.jetbrains.annotations.NotNull;
-import ru.mail.polis.zvladn7.DAOImpl;
-import ru.mail.polis.zvladn7.LSMDAOImpl;
+import ru.mail.polis.zvladn7.LsmDAOImpl;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,6 +54,6 @@ public final class DAOFactory {
             throw new IllegalArgumentException("Path is not a directory: " + data);
         }
 
-        return new LSMDAOImpl(data, (int) MAX_HEAP / 32);
+        return new LsmDAOImpl(data, (int) MAX_HEAP / 32);
     }
 }

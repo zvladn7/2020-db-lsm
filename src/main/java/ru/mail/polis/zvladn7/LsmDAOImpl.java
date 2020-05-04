@@ -17,9 +17,9 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
-public class LSMDAOImpl implements DAO {
+public class LsmDAOImpl implements DAO {
 
-    private static final Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
+    private static final Logger log = Logger.getLogger(LsmDAOImpl.class.getName());
 
     private static final String SSTABLE_FILE_POSTFIX = ".dat";
     private static final String SSTABLE_TEMPORARY_FILE_POSTFIX = ".tmp";
@@ -35,17 +35,18 @@ public class LSMDAOImpl implements DAO {
 
     private int generation = 0;
 
-    public LSMDAOImpl(@NotNull final File storage, final int amountOfBytesToFlush) throws IOException {
+    public LsmDAOImpl(@NotNull final File storage, final int amountOfBytesToFlush) throws IOException {
         this.storage = storage;
         this.amountOfBytesToFlush = amountOfBytesToFlush;
         this.memtable = new MemoryTable();
         this.ssTables = new TreeMap<>();
-        try (final Stream<Path> files = Files.list(storage.toPath())) {
+        try (Stream<Path> files = Files.list(storage.toPath())) {
             files.filter(file -> !file.toFile().isDirectory() && file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
                         final String fileName = file.getFileName().toString();
                         try {
-                            final int gen = Integer.parseInt(fileName.substring(0, fileName.indexOf(SSTABLE_FILE_POSTFIX)));
+                            final String stringGen = fileName.substring(0, fileName.indexOf(SSTABLE_FILE_POSTFIX));
+                            final int gen = Integer.parseInt(stringGen);
                             generation = Math.max(gen, generation);
                             ssTables.put(gen, new SSTable(file.toFile()));
                         } catch (IOException e) {
@@ -62,7 +63,7 @@ public class LSMDAOImpl implements DAO {
 
     @NotNull
     @Override
-    public Iterator<Record> iterator(@NotNull ByteBuffer from) throws IOException {
+    public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
         final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
         iters.add(memtable.iterator(from));
         ssTables.descendingMap().values().forEach(ssTable -> {
@@ -75,13 +76,13 @@ public class LSMDAOImpl implements DAO {
 
         final Iterator<Cell> mergedElements = Iterators.mergeSorted(iters, Cell.COMPARATOR);
         final Iterator<Cell> freshElements = Iters.collapseEquals(mergedElements, Cell::getKey);
-        final Iterator<Cell> aliveElements = Iterators.filter(freshElements, element -> !element.getValue().isTombstone());
+        final Iterator<Cell> aliveElements = Iterators.filter(freshElements, el -> !el.getValue().isTombstone());
 
-        return Iterators.transform(aliveElements, element -> Record.of(element.getKey(), element.getValue().getData()));
+        return Iterators.transform(aliveElements, el -> Record.of(el.getKey(), el.getValue().getData()));
     }
 
     @Override
-    public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
+    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
         memtable.upsert(key, value);
         if (memtable.getSize() > amountOfBytesToFlush) {
             flush();
@@ -89,7 +90,7 @@ public class LSMDAOImpl implements DAO {
     }
 
     @Override
-    public void remove(@NotNull ByteBuffer key) throws IOException {
+    public void remove(@NotNull final ByteBuffer key) throws IOException {
         memtable.remove(key);
         if (memtable.getSize() > amountOfBytesToFlush) {
             flush();

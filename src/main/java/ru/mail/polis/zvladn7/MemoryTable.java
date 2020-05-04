@@ -23,7 +23,7 @@ public class MemoryTable implements Table {
 
     @NotNull
     @Override
-    public Iterator<Cell> iterator(@NotNull ByteBuffer from) {
+    public Iterator<Cell> iterator(@NotNull final ByteBuffer from) {
         return map.tailMap(from)
                 .entrySet()
                 .stream()
@@ -32,8 +32,8 @@ public class MemoryTable implements Table {
     }
 
     @Override
-    public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
-        Value val = map.get(key);
+    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
+        final Value val = map.get(key);
         if (val == null) {
             currentAmountOfBytes += key.remaining() + value.remaining() + Long.BYTES;
         } else {
@@ -43,8 +43,8 @@ public class MemoryTable implements Table {
     }
 
     @Override
-    public void remove(@NotNull ByteBuffer key) {
-        Value value = map.get(key);
+    public void remove(@NotNull final ByteBuffer key) {
+        final Value value = map.get(key);
         if (value != null && !value.isTombstone()) {
             currentAmountOfBytes -= value.getData().remaining();
         } else {
@@ -58,7 +58,6 @@ public class MemoryTable implements Table {
     public int size() {
         return map.size();
     }
-
 
     @Override
     public void close() {

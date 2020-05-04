@@ -2,38 +2,36 @@ package ru.mail.polis.zvladn7;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 public class SSTable implements Table {
 
-    private final static Logger log = Logger.getLogger(LSMDAOImpl.class.getName());
+    private static final Logger log = Logger.getLogger(LsmDAOImpl.class.getName());
 
     private final int shiftToOffsetsArray;
     private final int amountOfElements;
     private final FileChannel fileChannel;
-
 
     /**
      * File structure
      * * [ rows ]
      * * [ rows offset ]
      * * amount of rows
-     *
      */
     SSTable(@NotNull final File file) throws IOException {
-        fileChannel =  FileChannel.open(file.toPath(), StandardOpenOption.READ);
+        fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
         final int fileSize = (int) fileChannel.size();
 
         //get amount
-        ByteBuffer offsetBuf = ByteBuffer.allocate(Integer.BYTES);
+        final ByteBuffer offsetBuf = ByteBuffer.allocate(Integer.BYTES);
         fileChannel.read(offsetBuf, fileSize - Integer.BYTES);
         amountOfElements = offsetBuf.flip().getInt();
 
@@ -42,17 +40,17 @@ public class SSTable implements Table {
 
     @NotNull
     @Override
-    public Iterator<Cell> iterator(@NotNull ByteBuffer from) throws IOException {
+    public Iterator<Cell> iterator(@NotNull final ByteBuffer from) {
         return new SSTableIter(from);
     }
 
     @Override
-    public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
-        throw new UnsupportedEncodingException("SSTable doesn't provide upsert operations!");
+    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
+        throw new UnsupportedOperationException("SSTable doesn't provide upsert operations!");
     }
 
     @Override
-    public void remove(@NotNull ByteBuffer key) {
+    public void remove(@NotNull final ByteBuffer key) {
         throw new UnsupportedOperationException("SSTable doesn't provide remove operations!");
     }
 
@@ -61,7 +59,7 @@ public class SSTable implements Table {
         return amountOfElements;
     }
 
-    static void serialize(final File file, final Iterator<Cell> elementsIter, int amount) throws IOException {
+    static void serialize(final File file, final Iterator<Cell> elementsIter, final int amount) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE)) {
 
             final List<Integer> offsets = new ArrayList<>();
@@ -82,7 +80,6 @@ public class SSTable implements Table {
                 fileChannel.write(key);
                 //write timestamp
                 fileChannel.write(ByteBuffer.allocate(Long.BYTES).putLong(value.getTimestamp()).flip());
-
 
                 if (value.isTombstone()) {
                     fileChannel.write(ByteBuffer.allocate(Integer.BYTES).putInt(-1).flip());
@@ -141,12 +138,9 @@ public class SSTable implements Table {
     }
 
     /**
-     *
      * Cell(a row of file) structure:
      * key size | key | timestamp | value size | value
-     *
      * if value size is 0 than value is absent
-     *
      */
     private Cell get(final int position) throws IOException {
         int elementOffset = getOffset(position);
@@ -154,10 +148,10 @@ public class SSTable implements Table {
         final ByteBuffer key = getKey(position);
 
         elementOffset += Integer.BYTES + key.remaining();
-        ByteBuffer timestampBuf = ByteBuffer.allocate(Long.BYTES);
+        final ByteBuffer timestampBuf = ByteBuffer.allocate(Long.BYTES);
         fileChannel.read(timestampBuf, elementOffset);
 
-        ByteBuffer valueSizeBuf = ByteBuffer.allocate(Integer.BYTES);
+        final ByteBuffer valueSizeBuf = ByteBuffer.allocate(Integer.BYTES);
         fileChannel.read(valueSizeBuf, elementOffset + Long.BYTES);
         final int valueSize = valueSizeBuf.flip().getInt();
 
@@ -165,7 +159,7 @@ public class SSTable implements Table {
         if (valueSize == -1) {
             value = new Value(timestampBuf.flip().getLong());
         } else {
-            ByteBuffer valueBuf = ByteBuffer.allocate(valueSize);
+            final ByteBuffer valueBuf = ByteBuffer.allocate(valueSize);
             fileChannel.read(valueBuf, elementOffset + Long.BYTES + Integer.BYTES);
             valueBuf.flip();
             value = new Value(timestampBuf.flip().getLong(), valueBuf);
@@ -197,7 +191,7 @@ public class SSTable implements Table {
                 return get(position++);
             } catch (IOException e) {
                 log.info("SSTable's iterator cannot get a cell because it has no more elements");
-                throw new NoSuchElementException();
+                throw new RuntimeException(e);
             }
         }
     }
