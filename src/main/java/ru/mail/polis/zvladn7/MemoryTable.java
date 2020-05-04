@@ -45,10 +45,10 @@ public class MemoryTable implements Table {
     @Override
     public void remove(@NotNull final ByteBuffer key) {
         final Value value = map.get(key);
-        if (value != null && !value.isTombstone()) {
-            currentAmountOfBytes -= value.getData().remaining();
-        } else {
+        if (value == null) {
             currentAmountOfBytes += key.remaining() + Long.BYTES;
+        } else if (!value.isTombstone()) {
+            currentAmountOfBytes -= value.getData().remaining();
         }
 
         map.put(key.duplicate(), new Value(System.currentTimeMillis()));

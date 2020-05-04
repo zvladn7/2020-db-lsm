@@ -16,10 +16,10 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.NavigableMap;
-import java.util.stream.Stream;
 import java.util.TreeMap;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 public class LsmDAOImpl implements DAO {
 
@@ -34,11 +34,19 @@ public class LsmDAOImpl implements DAO {
     private final File storage;
     private final int amountOfBytesToFlush;
 
-    private MemoryTable memtable;
+    private final MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
 
-    private int generation = 0;
+    private int generation;
 
+    /**
+     * LSM DAO implementation
+     *
+     * @param storage - the directory where SSTables stored
+     * @param amountOfBytesToFlush - amount of bytes that need to flush current memory table to
+     *                             the 'storage' directory, so when the size of memory table is
+     *                             more than this number the count of SSTables increase
+     */
     public LsmDAOImpl(@NotNull final File storage, final int amountOfBytesToFlush) throws IOException {
         this.storage = storage;
         this.amountOfBytesToFlush = amountOfBytesToFlush;
