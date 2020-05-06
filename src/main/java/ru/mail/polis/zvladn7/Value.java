@@ -18,6 +18,10 @@ public class Value implements Comparable<Value> {
         this.data = null;
     }
 
+    public static Value newTombstoneValue(final long timestamp) {
+        return new Value(timestamp);
+    }
+
     boolean isTombstone() {
         return data == null;
     }

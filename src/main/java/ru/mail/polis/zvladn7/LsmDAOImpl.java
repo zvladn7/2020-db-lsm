@@ -34,7 +34,7 @@ public class LsmDAOImpl implements DAO {
     private final File storage;
     private final int amountOfBytesToFlush;
 
-    private final MemoryTable memtable;
+    private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
 
     private int generation;
@@ -72,7 +72,7 @@ public class LsmDAOImpl implements DAO {
 
     @NotNull
     @Override
-    public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
+    public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
         final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
         iters.add(memtable.iterator(from));
         ssTables.descendingMap().values().forEach(ssTable -> {
@@ -83,7 +83,11 @@ public class LsmDAOImpl implements DAO {
             }
         });
 
-        final Iterator<Cell> mergedElements = Iterators.mergeSorted(iters, Cell.COMPARATOR);
+        final Iterator<Cell> mergedElements = Iterators.mergeSorted(
+                iters,
+                Cell.BY_KEY_AND_VALUE_CREATION_TIME_COMPARATOR
+        );
+
         final Iterator<Cell> freshElements = Iters.collapseEquals(mergedElements, Cell::getKey);
         final Iterator<Cell> aliveElements = Iterators.filter(freshElements, el -> !el.getValue().isTombstone());
 
@@ -93,7 +97,7 @@ public class LsmDAOImpl implements DAO {
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
         memtable.upsert(key, value);
-        if (memtable.getSize() > amountOfBytesToFlush) {
+        if (memtable.getAmountOfBytes() > amountOfBytesToFlush) {
             flush();
         }
     }
@@ -101,7 +105,7 @@ public class LsmDAOImpl implements DAO {
     @Override
     public void remove(@NotNull final ByteBuffer key) throws IOException {
         memtable.remove(key);
-        if (memtable.getSize() > amountOfBytesToFlush) {
+        if (memtable.getAmountOfBytes() > amountOfBytesToFlush) {
             flush();
         }
     }
@@ -122,7 +126,7 @@ public class LsmDAOImpl implements DAO {
         Files.move(file.toPath(), dst.toPath(), StandardCopyOption.ATOMIC_MOVE);
         ++generation;
         ssTables.put(generation, new SSTable(dst));
-        memtable.close();
+        memtable = new MemoryTable();
     }
 
 }

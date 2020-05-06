@@ -157,7 +157,7 @@ public class SSTable implements Table {
 
         final Value value;
         if (valueSize == -1) {
-            value = new Value(timestampBuf.flip().getLong());
+            value = Value.newTombstoneValue(timestampBuf.flip().getLong());
         } else {
             final ByteBuffer valueBuf = ByteBuffer.allocate(valueSize);
             fileChannel.read(valueBuf, elementOffset + Long.BYTES + Integer.BYTES);

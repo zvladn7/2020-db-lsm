@@ -13,11 +13,7 @@ public class MemoryTable implements Table {
 
     private int currentAmountOfBytes;
 
-    public MemoryTable() {
-        this.currentAmountOfBytes = 0;
-    }
-
-    public int getSize() {
+    public int getAmountOfBytes() {
         return currentAmountOfBytes;
     }
 
@@ -33,25 +29,22 @@ public class MemoryTable implements Table {
 
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
-        final Value val = map.get(key);
+        final Value val = map.put(key.duplicate(), new Value(System.currentTimeMillis(), value.duplicate()));
         if (val == null) {
             currentAmountOfBytes += key.remaining() + value.remaining() + Long.BYTES;
         } else {
             currentAmountOfBytes += value.remaining() - val.getData().remaining();
         }
-        map.put(key.duplicate(), new Value(System.currentTimeMillis(), value.duplicate()));
     }
 
     @Override
     public void remove(@NotNull final ByteBuffer key) {
-        final Value value = map.get(key);
+        final Value value = map.put(key.duplicate(), Value.newTombstoneValue(System.currentTimeMillis()));
         if (value == null) {
             currentAmountOfBytes += key.remaining() + Long.BYTES;
         } else if (!value.isTombstone()) {
             currentAmountOfBytes -= value.getData().remaining();
         }
-
-        map.put(key.duplicate(), new Value(System.currentTimeMillis()));
     }
 
     @Override
@@ -61,7 +54,5 @@ public class MemoryTable implements Table {
 
     @Override
     public void close() {
-        map.clear();
-        currentAmountOfBytes = 0;
     }
 }
