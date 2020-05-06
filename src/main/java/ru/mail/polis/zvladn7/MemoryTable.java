@@ -54,5 +54,6 @@ public class MemoryTable implements Table {
 
     @Override
     public void close() {
+        //nothing to close
     }
 }
