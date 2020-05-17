@@ -204,8 +204,8 @@ class PersistenceTest extends TestBase {
         final Random values = new Random(valueSeed);
         final Map<Integer, Byte> samples = new HashMap<>(sampleCount);
 
-        // Create, fill and close storage (LSM is fast for writes)
         try (final DAO dao = DAOFactory.create(data)) {
+            // Populate (LSM is fast for writes)
             for (int i = 0; i < records; i++) {
                 final int keyPayload = keys.nextInt();
                 final ByteBuffer key = ByteBuffer.allocate(Integer.BYTES);
@@ -226,10 +226,8 @@ class PersistenceTest extends TestBase {
                     assertEquals(value, dao.get(key));
                 }
             }
-        }
 
-        // Recreate dao and check the contents with sampling (LSM is slow for reads)
-        try (final DAO dao = DAOFactory.create(data)) {
+            // Check the contents with sampling (LSM is slow for reads)
             for (final Map.Entry<Integer, Byte> sample : samples.entrySet()) {
                 final ByteBuffer key = ByteBuffer.allocate(Integer.BYTES);
                 key.putInt(sample.getKey());
