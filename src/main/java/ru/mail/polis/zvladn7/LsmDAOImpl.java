@@ -18,6 +18,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -60,9 +61,9 @@ public class LsmDAOImpl implements DAO {
                             ssTables.put(gen, new SSTable(file.toFile()));
                         } catch (IOException e) {
                             e.printStackTrace();
-                            log.info("Something went wrong while the SSTable was created!");
+                            log.log(Level.INFO, "Something went wrong while the SSTable was created!", e);
                         } catch (NumberFormatException e) {
-                            log.info("Unexpected name of SSTable file: " + fileName);
+                            log.log(Level.INFO, "Unexpected name of SSTable file: " + fileName, e);
                         }
                     });
             ++generation;
@@ -108,10 +109,14 @@ public class LsmDAOImpl implements DAO {
         final Iterator<Cell> freshElements = freshCellIterator(EMPTY_BUFFER);
         final File dst = serialize(freshElements);
 
-        try (final Stream<Path> files = Files.list(storage.toPath())) {
+        try (Stream<Path> files = Files.list(storage.toPath())) {
             files.filter(f -> !f.getFileName().toFile().toString().equals(dst.getName()))
                 .forEach(f -> {
-                    f.toFile().delete();
+                    try {
+                        Files.delete(f);
+                    } catch (IOException e) {
+                        log.log(Level.WARNING, "Unable to delete file: " + f.getFileName().toFile().toString(), e);
+                    }
                 });
         }
 
@@ -128,14 +133,14 @@ public class LsmDAOImpl implements DAO {
         memtable = new MemoryTable();
     }
 
-    private Iterator<Cell> freshCellIterator(@NotNull ByteBuffer from) {
+    private Iterator<Cell> freshCellIterator(@NotNull final ByteBuffer from) {
         final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
         iters.add(memtable.iterator(from));
         ssTables.descendingMap().values().forEach(ssTable -> {
             try {
                 iters.add(ssTable.iterator(from));
             } catch (IOException e) {
-                log.info("Something went wrong when the SSTable iterator was added to list iter!");
+                log.log(Level.INFO, "Something went wrong when the SSTable iterator was added to list iter!", e);
             }
         });
 
@@ -147,7 +152,7 @@ public class LsmDAOImpl implements DAO {
         return Iters.collapseEquals(mergedElements, Cell::getKey);
     }
 
-    private File serialize(Iterator<Cell> iterator) throws IOException {
+    private File serialize(final Iterator<Cell> iterator) throws IOException {
         final File file = new File(storage, generation + SSTABLE_TEMPORARY_FILE_POSTFIX);
         file.createNewFile();
         SSTable.serialize(file, iterator);

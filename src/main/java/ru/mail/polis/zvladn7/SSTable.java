@@ -10,6 +10,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class SSTable implements Table {
@@ -176,7 +177,7 @@ public class SSTable implements Table {
             try {
                 position = getElementPosition(from.rewind());
             } catch (IOException e) {
-                log.info("SSTable's iterator cannot correctly get 'from' position");
+                log.log(Level.INFO, "SSTable's iterator cannot correctly get 'from' position", e);
             }
         }
 
@@ -190,7 +191,7 @@ public class SSTable implements Table {
             try {
                 return get(position++);
             } catch (IOException e) {
-                log.info("SSTable's iterator cannot get a cell because it has no more elements");
+                log.log(Level.INFO, "SSTable's iterator cannot get a cell because it has no more elements", e);
                 throw new RuntimeException(e);
             }
         }
@@ -201,7 +202,7 @@ public class SSTable implements Table {
         try {
             fileChannel.close();
         } catch (IOException e) {
-            log.warning("The error was happened when the file channel was closed");
+            log.log(Level.WARNING, "The error was happened when the file channel was closed", e);
         }
     }
 }
