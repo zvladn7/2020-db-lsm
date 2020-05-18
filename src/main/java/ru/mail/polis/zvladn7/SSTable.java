@@ -59,7 +59,7 @@ public class SSTable implements Table {
         return amountOfElements;
     }
 
-    static void serialize(final File file, final Iterator<Cell> elementsIter, final int amount) throws IOException {
+    static void serialize(final File file, final Iterator<Cell> elementsIter) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE)) {
 
             final List<Integer> offsets = new ArrayList<>();
@@ -69,7 +69,7 @@ public class SSTable implements Table {
                 final Cell cell = elementsIter.next();
                 final ByteBuffer key = cell.getKey();
                 final Value value = cell.getValue();
-                final Integer keySize = key.remaining();
+                final int keySize = key.remaining();
 
                 offsets.add(offset);
                 offset += keySize + Integer.BYTES * 2 + Long.BYTES;
@@ -95,7 +95,7 @@ public class SSTable implements Table {
             for (final Integer i : offsets) {
                 fileChannel.write(ByteBuffer.allocate(Integer.BYTES).putInt(i).flip());
             }
-            fileChannel.write(ByteBuffer.allocate(Integer.BYTES).putInt(amount).flip());
+            fileChannel.write(ByteBuffer.allocate(Integer.BYTES).putInt(offsets.size()).flip());
         }
     }
 

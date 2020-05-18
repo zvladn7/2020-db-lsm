@@ -49,7 +49,7 @@ public class LsmDAOImpl implements DAO {
         this.amountOfBytesToFlush = amountOfBytesToFlush;
         this.memtable = new MemoryTable();
         this.ssTables = new TreeMap<>();
-        try (Stream<Path> files = Files.list(storage.toPath())) {
+        try (final Stream<Path> files = Files.list(storage.toPath())) {
             files.filter(file -> !file.toFile().isDirectory() && file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
                         final String fileName = file.getFileName().toString();
@@ -65,7 +65,7 @@ public class LsmDAOImpl implements DAO {
                             log.info("Unexpected name of SSTable file: " + fileName);
                         }
                     });
-            generation++;
+            ++generation;
         }
 
     }
@@ -73,22 +73,7 @@ public class LsmDAOImpl implements DAO {
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
-        final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
-        iters.add(memtable.iterator(from));
-        ssTables.descendingMap().values().forEach(ssTable -> {
-            try {
-                iters.add(ssTable.iterator(from));
-            } catch (IOException e) {
-                log.info("Something went wrong when the SSTable iterator was added to list iter!");
-            }
-        });
-
-        final Iterator<Cell> mergedElements = Iterators.mergeSorted(
-                iters,
-                Cell.BY_KEY_AND_VALUE_CREATION_TIME_COMPARATOR
-        );
-
-        final Iterator<Cell> freshElements = Iters.collapseEquals(mergedElements, Cell::getKey);
+        final Iterator<Cell> freshElements = freshCellIterator(from);
         final Iterator<Cell> aliveElements = Iterators.filter(freshElements, el -> !el.getValue().isTombstone());
 
         return Iterators.transform(aliveElements, el -> Record.of(el.getKey(), el.getValue().getData()));
@@ -118,15 +103,59 @@ public class LsmDAOImpl implements DAO {
         ssTables.values().forEach(Table::close);
     }
 
+    @Override
+    public void compact() throws IOException {
+        final Iterator<Cell> freshElements = freshCellIterator(EMPTY_BUFFER);
+        final File dst = serialize(freshElements);
+
+        try (final Stream<Path> files = Files.list(storage.toPath())) {
+            files.filter(f -> !f.getFileName().toFile().toString().equals(dst.getName()))
+                .forEach(f -> {
+                    f.toFile().delete();
+                });
+        }
+
+        ssTables.clear();
+        memtable = new MemoryTable();
+        ssTables.put(generation, new SSTable(dst));
+        ++generation;
+    }
+
     private void flush() throws IOException {
-        final File file = new File(storage, generation + SSTABLE_TEMPORARY_FILE_POSTFIX);
-        file.createNewFile();
-        SSTable.serialize(file, memtable.iterator(EMPTY_BUFFER), memtable.size());
-        final File dst = new File(storage, generation + SSTABLE_FILE_POSTFIX);
-        Files.move(file.toPath(), dst.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        final File dst = serialize(memtable.iterator(EMPTY_BUFFER));
         ++generation;
         ssTables.put(generation, new SSTable(dst));
         memtable = new MemoryTable();
+    }
+
+    private Iterator<Cell> freshCellIterator(@NotNull ByteBuffer from) {
+        final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
+        iters.add(memtable.iterator(from));
+        ssTables.descendingMap().values().forEach(ssTable -> {
+            try {
+                iters.add(ssTable.iterator(from));
+            } catch (IOException e) {
+                log.info("Something went wrong when the SSTable iterator was added to list iter!");
+            }
+        });
+
+        final Iterator<Cell> mergedElements = Iterators.mergeSorted(
+                iters,
+                Cell.BY_KEY_AND_VALUE_CREATION_TIME_COMPARATOR
+        );
+
+        return Iters.collapseEquals(mergedElements, Cell::getKey);
+    }
+
+    private File serialize(Iterator<Cell> iterator) throws IOException {
+        final File file = new File(storage, generation + SSTABLE_TEMPORARY_FILE_POSTFIX);
+        file.createNewFile();
+        SSTable.serialize(file, iterator);
+        final String newFileName = generation + SSTABLE_FILE_POSTFIX;
+        final File dst = new File(storage, newFileName);
+        Files.move(file.toPath(), dst.toPath(), StandardCopyOption.ATOMIC_MOVE);
+
+        return dst;
     }
 
 }
