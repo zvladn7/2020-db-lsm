@@ -50,7 +50,7 @@ public class LsmDAOImpl implements DAO {
         this.amountOfBytesToFlush = amountOfBytesToFlush;
         this.memtable = new MemoryTable();
         this.ssTables = new TreeMap<>();
-        try (final Stream<Path> files = Files.list(storage.toPath())) {
+        try (Stream<Path> files = Files.list(storage.toPath())) {
             files.filter(file -> !file.toFile().isDirectory() && file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
                         final String fileName = file.getFileName().toString();
