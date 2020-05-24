@@ -3,6 +3,7 @@ package ru.mail.polis.zvladn7;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.util.NoSuchElementException;
 
 public class Value implements Comparable<Value> {
     private final long timestamp;
@@ -28,6 +29,9 @@ public class Value implements Comparable<Value> {
 
     @NotNull
     ByteBuffer getData() {
+        if (data == null) {
+            throw new NoSuchElementException("Value has been removed!");
+        }
         return data.asReadOnlyBuffer();
     }
 

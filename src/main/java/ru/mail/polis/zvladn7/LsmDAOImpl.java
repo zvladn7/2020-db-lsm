@@ -3,7 +3,6 @@ package ru.mail.polis.zvladn7;
 import com.google.common.collect.Iterators;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
-import ru.mail.polis.DAO;
 import ru.mail.polis.Iters;
 import ru.mail.polis.Record;
 
@@ -13,16 +12,12 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
-public class LsmDAOImpl implements DAO {
+public class LsmDAOImpl implements LsmDAO {
 
     private static final Logger log = Logger.getLogger(LsmDAOImpl.class.getName());
 
@@ -37,6 +32,7 @@ public class LsmDAOImpl implements DAO {
 
     private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
+    private final HashMap<ByteBuffer, Long> lockTable;
 
     private int generation;
 
@@ -50,6 +46,7 @@ public class LsmDAOImpl implements DAO {
         this.amountOfBytesToFlush = amountOfBytesToFlush;
         this.memtable = new MemoryTable();
         this.ssTables = new TreeMap<>();
+        this.lockTable = new HashMap<>();
         try (Stream<Path> files = Files.list(storage.toPath())) {
             files.filter(file -> !file.toFile().isDirectory() && file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
@@ -163,4 +160,23 @@ public class LsmDAOImpl implements DAO {
         return dst;
     }
 
+    @Override
+    public TransactionalDAO beginTransaction() {
+        return new TransactionalDAOImpl(storage.getAbsolutePath(), this);
+    }
+
+    @Override
+    public void lock(@NotNull ByteBuffer key, @NotNull Long id) {
+        lockTable.put(key, id);
+    }
+
+    @Override
+    public boolean isLocked(@NotNull ByteBuffer key, @NotNull Long id) {
+        Long lockId = lockTable.get(key);
+        if (lockId == null) {
+            lock(key, id);
+            return false;
+        }
+        return !id.equals(lockId);
+    }
 }

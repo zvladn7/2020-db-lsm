@@ -1,6 +1,7 @@
 package ru.mail.polis.zvladn7;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -25,6 +26,15 @@ public class MemoryTable implements Table {
                 .stream()
                 .map(entry -> new Cell(entry.getKey(), entry.getValue()))
                 .iterator();
+    }
+
+    @Nullable
+    ByteBuffer get(@NotNull ByteBuffer key) {
+        Value value = map.get(key);
+        if (value == null) {
+            return null;
+        }
+        return value.getData();
     }
 
     @Override
