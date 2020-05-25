@@ -166,12 +166,12 @@ public class LsmDAOImpl implements LsmDAO {
     }
 
     @Override
-    public void lock(@NotNull ByteBuffer key, @NotNull Long id) {
+    public void lock(@NotNull final ByteBuffer key, @NotNull final Long id) {
         lockTable.put(key, id);
     }
 
     @Override
-    public boolean isLocked(@NotNull ByteBuffer key, @NotNull Long id) {
+    public boolean isLocked(@NotNull final ByteBuffer key, @NotNull final Long id) {
         Long lockId = lockTable.get(key);
         if (lockId == null) {
             lock(key, id);

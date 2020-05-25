@@ -20,7 +20,12 @@ public class TransactionalDAOImpl implements TransactionalDAO {
     private long generation = 0;
     private LsmDAO dao;
 
-    public TransactionalDAOImpl(@NotNull final String storageDir, @NotNull LsmDAO dao) {
+    /**
+     * TransactionalDAO implementation.
+     * @param storageDir - the name of directory where current DAO storage placed
+     * @param dao - DAO which has started transaction
+     */
+    public TransactionalDAOImpl(@NotNull final String storageDir, @NotNull final LsmDAO dao) {
         this.memoryTable = new MemoryTable();
         this.dao = dao;
         this.id = nextId++;
@@ -53,13 +58,13 @@ public class TransactionalDAOImpl implements TransactionalDAO {
 
     @NotNull
     @Override
-    public Iterator<Record> iterator(@NotNull ByteBuffer from) throws IOException {
+    public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
         throw new UnsupportedOperationException("Iterator is unsupported for transaction");
     }
 
     @NotNull
     @Override
-    public ByteBuffer get(@NotNull ByteBuffer key) throws IOException {
+    public ByteBuffer get(@NotNull final ByteBuffer key) throws IOException {
         if (dao.isLocked(key, id)) {
             throw new ConcurrentModificationException("The key has been already locked. get() cannot be performed!");
         }
