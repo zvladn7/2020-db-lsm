@@ -12,7 +12,13 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -32,7 +38,7 @@ public class LsmDAOImpl implements LsmDAO {
 
     private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
-    private final HashMap<ByteBuffer, Long> lockTable;
+    private final Map<ByteBuffer, Long> lockTable;
 
     private int generation;
 
@@ -162,7 +168,7 @@ public class LsmDAOImpl implements LsmDAO {
 
     @Override
     public TransactionalDAO beginTransaction() {
-        return new TransactionalDAOImpl(storage.getAbsolutePath(), this);
+        return new TransactionalDAOImpl(this);
     }
 
     @Override
@@ -172,7 +178,7 @@ public class LsmDAOImpl implements LsmDAO {
 
     @Override
     public boolean isLocked(@NotNull final ByteBuffer key, @NotNull final Long id) {
-        Long lockId = lockTable.get(key);
+        final Long lockId = lockTable.get(key);
         if (lockId == null) {
             lock(key, id);
             return false;

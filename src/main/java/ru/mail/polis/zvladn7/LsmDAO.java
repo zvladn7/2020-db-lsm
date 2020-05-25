@@ -8,17 +8,17 @@ import java.nio.ByteBuffer;
 public interface LsmDAO extends DAO {
 
     /**
-     * Begin new transaction
+     * Begin new transaction.
      */
     TransactionalDAO beginTransaction();
 
     /**
-     * Lock key for other transactions
+     * Lock key for other transactions.
      */
     void lock(@NotNull ByteBuffer key, @NotNull Long id);
 
     /**
-     * Check if the key is locked for current transaction
+     * Check if the key is locked for current transaction.
      */
     boolean isLocked(@NotNull ByteBuffer key, @NotNull Long id);
 

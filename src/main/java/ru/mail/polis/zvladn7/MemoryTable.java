@@ -29,8 +29,8 @@ public class MemoryTable implements Table {
     }
 
     @Nullable
-    ByteBuffer get(@NotNull ByteBuffer key) {
-        Value value = map.get(key);
+    ByteBuffer get(@NotNull final ByteBuffer key) {
+        final Value value = map.get(key);
         if (value == null) {
             return null;
         }
