@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 public class TransactionalDAOImpl implements TransactionalDAO {
 
@@ -23,10 +22,12 @@ public class TransactionalDAOImpl implements TransactionalDAO {
 
     public TransactionalDAOImpl(@NotNull final String storageDir, @NotNull LsmDAO dao) {
         this.memoryTable = new MemoryTable();
+        this.dao = dao;
         this.id = nextId++;
+
+        //for flush realization
         this.storage = new File(storageDir + "/" + id);
         this.storage.mkdir();
-        this.dao = dao;
     }
 
     @Override
@@ -37,6 +38,7 @@ public class TransactionalDAOImpl implements TransactionalDAO {
                     dao.remove(cell.getKey());
                 } else {
                     dao.upsert(cell.getKey(), cell.getValue().getData());
+
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -55,7 +57,7 @@ public class TransactionalDAOImpl implements TransactionalDAO {
         throw new UnsupportedOperationException("Iterator is unsupported for transaction");
     }
 
-    @Nullable
+    @NotNull
     @Override
     public ByteBuffer get(@NotNull ByteBuffer key) throws IOException {
         if (dao.isLocked(key, id)) {
@@ -87,9 +89,5 @@ public class TransactionalDAOImpl implements TransactionalDAO {
     @Override
     public void close() throws IOException {
         //nothing to close
-    }
-
-    public long getId() {
-        return id;
     }
 }
