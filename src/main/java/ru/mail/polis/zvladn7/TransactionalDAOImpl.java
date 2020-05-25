@@ -7,9 +7,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class TransactionalDAOImpl implements TransactionalDAO {
 
+    private static final Logger logger = Logger.getLogger(TransactionalDAOImpl.class.getName());
     private static long nextId;
 
     private final long id;
@@ -37,7 +40,7 @@ public class TransactionalDAOImpl implements TransactionalDAO {
 
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.log(Level.WARNING, "The error occurred while transaction was trying to commit, id: " + id, e);
             }
         });
     }
