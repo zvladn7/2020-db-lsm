@@ -66,4 +66,8 @@ public class MemoryTable implements Table {
     public void close() {
         //nothing to close
     }
+
+    public void clear() {
+        map.clear();
+    }
 }

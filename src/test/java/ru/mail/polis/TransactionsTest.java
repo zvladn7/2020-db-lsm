@@ -22,7 +22,7 @@ class TransactionsTest extends TestBase {
     void lock(@TempDir File data) throws IOException {
         final int amount = 3;
 
-        //create 3 keys and one value
+        //create 3 keys and 3 values
         final List<ByteBuffer> keys = new ArrayList<>(amount);
         final List<ByteBuffer> values = new ArrayList<>(amount);
         for (int i = 0; i < amount; i++) {
@@ -93,7 +93,7 @@ class TransactionsTest extends TestBase {
         final int removeFrom = 200;
         final int removeTo = 300;
 
-        //create 3 keys and one value
+        //create 500 keys and values
         final List<ByteBuffer> keys = new ArrayList<>(amount);
         final List<ByteBuffer> values = new ArrayList<>(amount);
         for (int i = 0; i < amount; i++) {
@@ -144,19 +144,18 @@ class TransactionsTest extends TestBase {
                 }
             }
 
-
         }
     }
 
     @Test
     void manyTransactions(@TempDir File data) throws IOException {
         final int amountOfKeyValue = 50;
-        final int amountofInsertToDao = 10;
+        final int amountOfInsertToDao = 10;
         final int amountOfTransactions = 50;
         final int commitFrom = 5;
         final int commitTo = 45;
 
-        //create 3 keys and one value
+        //create 50 keys and values
         final List<ByteBuffer> keys = new ArrayList<>(amountOfKeyValue);
         final List<ByteBuffer> values = new ArrayList<>(amountOfKeyValue);
         for (int i = 0; i < amountOfKeyValue; i++) {
@@ -165,7 +164,7 @@ class TransactionsTest extends TestBase {
         }
 
         try (LsmDAO dao = DAOFactory.create(data)) {
-            for (int i = 0; i < amountofInsertToDao; ++i) {
+            for (int i = 0; i < amountOfInsertToDao; ++i) {
                 dao.upsert(keys.get(i), values.get(i));
             }
 
@@ -174,32 +173,34 @@ class TransactionsTest extends TestBase {
                 transactions.add(dao.beginTransaction());
             }
 
-            for (int i = 0; i < amountofInsertToDao; ++i) {
+            for (int i = 0; i < amountOfInsertToDao; ++i) {
                 transactions.get(i).remove(keys.get(i));
 
                 final int finalI = i;
-                assertThrows(NoSuchElementException.class, () -> transactions.get(finalI).get(keys.get(finalI)));
+                assertThrows(NoSuchElementException.class, () ->
+                        transactions.get(finalI).get(keys.get(finalI)));
             }
 
-            for (int i = amountofInsertToDao; i < amountOfTransactions; ++i) {
+            for (int i = amountOfInsertToDao; i < amountOfTransactions; ++i) {
                 transactions.get(i).upsert(keys.get(i), values.get(i));
 
                 assertEquals(values.get(i), transactions.get(i).get(keys.get(i)));
             }
 
             //try to access elements which were used by other transactions
-            for (int i = amountofInsertToDao; i < amountOfTransactions; ++i) {
+            //transactions will also roll back
+            for (int i = 0; i < amountOfTransactions; ++i) {
                 final int finalI = i;
-                assertThrows(ConcurrentModificationException.class,
-                        () -> transactions.get(finalI).get(keys.get(amountOfTransactions - finalI - 1)));
+                if (i < commitFrom || i > commitTo) {
+                    assertThrows(ConcurrentModificationException.class,
+                            () -> transactions.get(finalI).get(keys.get(amountOfInsertToDao)));
+                }
             }
 
-            //commit and rollback transactions
+            //commit transactions which weren't roll backed by the previous cycle
             for (int i = 0; i < amountOfTransactions; ++i) {
                 if (i >= commitFrom && i <= commitTo) {
                     transactions.get(i).commit();
-                } else {
-                    transactions.get(i).rollback();
                 }
             }
 
@@ -207,7 +208,7 @@ class TransactionsTest extends TestBase {
             //check that roll backed transactions didn't change current dao structure
 
             //transactions that removed values
-            for (int i = 0; i < amountofInsertToDao; ++i) {
+            for (int i = 0; i < amountOfInsertToDao; ++i) {
                 if (i >= commitFrom) {
                     final int finalI = i;
                     assertThrows(NoSuchElementException.class, () -> dao.get(keys.get(finalI)));
@@ -217,7 +218,7 @@ class TransactionsTest extends TestBase {
             }
 
             //transactions that insert new values
-            for (int i = amountofInsertToDao; i < amountOfKeyValue; ++i) {
+            for (int i = amountOfInsertToDao; i < amountOfKeyValue; ++i) {
                 if (i <= commitTo) {
                     assertEquals(values.get(i), dao.get(keys.get(i)));
                 } else {
@@ -225,7 +226,6 @@ class TransactionsTest extends TestBase {
                     assertThrows(NoSuchElementException.class, () -> dao.get(keys.get(finalI)));
                 }
             }
-
 
         }
 

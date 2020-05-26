@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LsmDAOImpl implements LsmDAO {
@@ -38,7 +40,7 @@ public class LsmDAOImpl implements LsmDAO {
 
     private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
-    private final Map<ByteBuffer, Long> lockTable;
+    private Map<ByteBuffer, Long> lockTable;
 
     private int generation;
 
@@ -136,8 +138,8 @@ public class LsmDAOImpl implements LsmDAO {
         memtable = new MemoryTable();
     }
 
-    private Iterator<Cell> freshCellIterator(@NotNull final ByteBuffer from) {
-        final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
+    List<Iterator<Cell>> getAllCellItersList(@NotNull final ByteBuffer from) {
+        final List<Iterator<Cell>> iters = new ArrayList<>();//ssTables.size() + 1);
         iters.add(memtable.iterator(from));
         ssTables.descendingMap().values().forEach(ssTable -> {
             try {
@@ -146,6 +148,12 @@ public class LsmDAOImpl implements LsmDAO {
                 log.log(Level.INFO, "Something went wrong when the SSTable iterator was added to list iter!", e);
             }
         });
+
+        return iters;
+    }
+
+    private Iterator<Cell> freshCellIterator(@NotNull final ByteBuffer from) {
+        final List<Iterator<Cell>> iters = getAllCellItersList(from);
 
         final Iterator<Cell> mergedElements = Iterators.mergeSorted(
                 iters,
@@ -171,18 +179,25 @@ public class LsmDAOImpl implements LsmDAO {
         return new TransactionalDAOImpl(this);
     }
 
-    @Override
-    public void lock(@NotNull final ByteBuffer key, @NotNull final Long id) {
-        lockTable.put(key, id);
+    void lock(@NotNull final ByteBuffer key, @NotNull final Long id) {
+        final Long lockId = lockTable.putIfAbsent(key, id);
+        if (lockId != null && !id.equals(lockId)) {
+            unlockKeys(id);
+            throw new ConcurrentModificationException("The key has been already locked by another transaction!");
+        }
     }
 
-    @Override
-    public boolean isLocked(@NotNull final ByteBuffer key, @NotNull final Long id) {
-        final Long lockId = lockTable.get(key);
-        if (lockId == null) {
-            lock(key, id);
-            return false;
-        }
-        return !id.equals(lockId);
+    private void unlockKeys(@NotNull final Long id) {
+        lockTable = lockTable.entrySet()
+                                .stream()
+                                .filter(entry -> !entry.getValue().equals(id))
+                                .collect(
+                                    Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        Map.Entry::getValue,
+                                        (prev, next) -> next,
+                                        HashMap::new
+                                    )
+                                );
     }
 }
