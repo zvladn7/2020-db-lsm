@@ -83,7 +83,6 @@ final class TransactionalDAOImpl implements TransactionalDAO {
             throw new NoSuchElementException("Record wasn't found");
         }
 
-
         final Record next = iter.next();
         if (next.getKey().equals(key)) {
             return next.getValue();

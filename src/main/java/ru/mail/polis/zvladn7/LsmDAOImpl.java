@@ -139,7 +139,8 @@ public class LsmDAOImpl implements LsmDAO {
     }
 
     List<Iterator<Cell>> getAllCellItersList(@NotNull final ByteBuffer from) {
-        final List<Iterator<Cell>> iters = new ArrayList<>();//ssTables.size() + 1);
+        //one more for TransactionalDAO iterator to not reallocate an array
+        final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 2);
         iters.add(memtable.iterator(from));
         ssTables.descendingMap().values().forEach(ssTable -> {
             try {
