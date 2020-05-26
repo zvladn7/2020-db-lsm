@@ -52,6 +52,7 @@ final class TransactionalDAOImpl implements TransactionalDAO {
 
     @Override
     public void rollback() {
+        dao.unlockKeys(id);
         memoryTable.clear();
     }
 

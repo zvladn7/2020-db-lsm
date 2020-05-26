@@ -183,12 +183,11 @@ public class LsmDAOImpl implements LsmDAO {
     void lock(@NotNull final ByteBuffer key, @NotNull final Long id) {
         final Long lockId = lockTable.putIfAbsent(key, id);
         if (lockId != null && !id.equals(lockId)) {
-            unlockKeys(id);
             throw new ConcurrentModificationException("The key has been already locked by another transaction!");
         }
     }
 
-    private void unlockKeys(@NotNull final Long id) {
+    void unlockKeys(@NotNull final Long id) {
         lockTable = lockTable.entrySet()
                                 .stream()
                                 .filter(entry -> !entry.getValue().equals(id))

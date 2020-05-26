@@ -43,13 +43,13 @@ class TransactionsTest extends TestBase {
             assertThrows(ConcurrentModificationException.class, () -> secondTransaction.get(keys.get(0)));
             assertThrows(ConcurrentModificationException.class, () -> secondTransaction.upsert(keys.get(0), values.get(0)));
 
-            assertEquals(values.get(1), secondTransaction.get(keys.get(1)));
+            TransactionalDAO thirdTransaction = dao.beginTransaction();
+            assertEquals(values.get(1), thirdTransaction.get(keys.get(1)));
             assertThrows(ConcurrentModificationException.class, () -> firstTransaction.remove(keys.get(1)));
             assertThrows(ConcurrentModificationException.class, () -> firstTransaction.get(keys.get(1)));
             assertThrows(ConcurrentModificationException.class, () -> firstTransaction.upsert(keys.get(1), values.get(0)));
 
-            firstTransaction.rollback();
-            secondTransaction.rollback();
+            thirdTransaction.rollback();
         }
     }
 
