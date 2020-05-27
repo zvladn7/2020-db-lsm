@@ -28,7 +28,6 @@ final class TransactionalDAOImpl implements TransactionalDAO {
     private final LsmDAOImpl dao;
     private static Map<ByteBuffer, Long> lockTable = new HashMap<>();
 
-
     /**
      * TransactionalDAO implementation.
      * @param dao - DAO which has started transaction
@@ -118,12 +117,12 @@ final class TransactionalDAOImpl implements TransactionalDAO {
         final Long lockId = lockTable.putIfAbsent(key, id);
         if (lockId != null && !id.equals(lockId)) {
             rollback();
-            logger.log(Level.INFO, "Transaction with id: " + id + " was rolled back!");
+            logger.log(Level.INFO, String.format("Transaction with id: %d was rolled back!", id));
             throw new ConcurrentModificationException("The key has been already locked by another transaction!");
         }
     }
 
-    private void unlockKeys(@NotNull final Long id) {
+    private static void unlockKeys(@NotNull final Long id) {
         lockTable = lockTable.entrySet()
                 .stream()
                 .filter(entry -> !entry.getValue().equals(id))
