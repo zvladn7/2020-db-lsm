@@ -117,7 +117,7 @@ final class TransactionalDAOImpl implements TransactionalDAO {
         final Long lockId = lockTable.putIfAbsent(key, id);
         if (lockId != null && !id.equals(lockId)) {
             rollback();
-            logger.log(Level.INFO, String.format("Transaction with id: %d was rolled back!", id));
+            logger.log(Level.INFO,"Transaction with id: {0} was rolled back!", id);
             throw new ConcurrentModificationException("The key has been already locked by another transaction!");
         }
     }
