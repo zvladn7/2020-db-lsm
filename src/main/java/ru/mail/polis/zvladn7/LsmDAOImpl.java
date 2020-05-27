@@ -13,16 +13,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LsmDAOImpl implements LsmDAO {
@@ -40,7 +36,6 @@ public class LsmDAOImpl implements LsmDAO {
 
     private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
-    private Map<ByteBuffer, Long> lockTable;
 
     private int generation;
 
@@ -54,7 +49,6 @@ public class LsmDAOImpl implements LsmDAO {
         this.amountOfBytesToFlush = amountOfBytesToFlush;
         this.memtable = new MemoryTable();
         this.ssTables = new TreeMap<>();
-        this.lockTable = new HashMap<>();
         try (Stream<Path> files = Files.list(storage.toPath())) {
             files.filter(file -> !file.toFile().isDirectory() && file.toString().endsWith(SSTABLE_FILE_POSTFIX))
                     .forEach(file -> {
@@ -180,24 +174,4 @@ public class LsmDAOImpl implements LsmDAO {
         return new TransactionalDAOImpl(this);
     }
 
-    void lock(@NotNull final ByteBuffer key, @NotNull final Long id) {
-        final Long lockId = lockTable.putIfAbsent(key, id);
-        if (lockId != null && !id.equals(lockId)) {
-            throw new ConcurrentModificationException("The key has been already locked by another transaction!");
-        }
-    }
-
-    void unlockKeys(@NotNull final Long id) {
-        lockTable = lockTable.entrySet()
-                                .stream()
-                                .filter(entry -> !entry.getValue().equals(id))
-                                .collect(
-                                    Collectors.toMap(
-                                        Map.Entry::getKey,
-                                        Map.Entry::getValue,
-                                        (prev, next) -> next,
-                                        HashMap::new
-                                    )
-                                );
-    }
 }

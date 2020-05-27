@@ -9,20 +9,25 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 final class TransactionalDAOImpl implements TransactionalDAO {
 
     private static final Logger logger = Logger.getLogger(TransactionalDAOImpl.class.getName());
     private static long nextId;
 
-    private final long id;
+    private final Long id;
     private final MemoryTable memoryTable;
     private final LsmDAOImpl dao;
+    private static Map<ByteBuffer, Long> lockTable = new HashMap<>();
+
 
     /**
      * TransactionalDAO implementation.
@@ -52,7 +57,7 @@ final class TransactionalDAOImpl implements TransactionalDAO {
 
     @Override
     public void rollback() {
-        dao.unlockKeys(id);
+        unlockKeys(id);
         memoryTable.clear();
     }
 
@@ -110,12 +115,25 @@ final class TransactionalDAOImpl implements TransactionalDAO {
     }
 
     private void lock(@NotNull final ByteBuffer key) {
-        try {
-            dao.lock(key, id);
-        } catch (ConcurrentModificationException ex) {
-            logger.log(Level.INFO, "Transaction with id: " + id + " was rolled back!");
+        final Long lockId = lockTable.putIfAbsent(key, id);
+        if (lockId != null && !id.equals(lockId)) {
             rollback();
-            throw ex;
+            logger.log(Level.INFO, "Transaction with id: " + id + " was rolled back!");
+            throw new ConcurrentModificationException("The key has been already locked by another transaction!");
         }
+    }
+
+    private void unlockKeys(@NotNull final Long id) {
+        lockTable = lockTable.entrySet()
+                .stream()
+                .filter(entry -> !entry.getValue().equals(id))
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey,
+                                Map.Entry::getValue,
+                                (prev, next) -> next,
+                                HashMap::new
+                        )
+                );
     }
 }
