@@ -40,7 +40,6 @@ public class LsmDAOImpl implements LsmDAO {
     private final NavigableMap<Integer, Table> ssTables;
     Map<ByteBuffer, Long> lockTable = new HashMap<>();
 
-
     private int generation;
 
     /**
@@ -64,7 +63,7 @@ public class LsmDAOImpl implements LsmDAO {
                             ssTables.put(gen, new SSTable(file.toFile()));
                         } catch (IOException e) {
                             e.printStackTrace();
-                            logger.error( "Something went wrong while the SSTable was created!", e);
+                            logger.error("Something went wrong while the SSTable was created!", e);
                         } catch (NumberFormatException e) {
                             logger.info("Unexpected name of SSTable file: " + fileName, e);
                         }
