@@ -3,6 +3,8 @@ package ru.mail.polis.zvladn7;
 import com.google.common.collect.Iterators;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.mail.polis.Iters;
 import ru.mail.polis.Record;
 
@@ -13,17 +15,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 public class LsmDAOImpl implements LsmDAO {
 
-    private static final Logger log = Logger.getLogger(LsmDAOImpl.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(LsmDAOImpl.class);
 
     private static final String SSTABLE_FILE_POSTFIX = ".dat";
     private static final String SSTABLE_TEMPORARY_FILE_POSTFIX = ".tmp";
@@ -36,6 +38,8 @@ public class LsmDAOImpl implements LsmDAO {
 
     private MemoryTable memtable;
     private final NavigableMap<Integer, Table> ssTables;
+    Map<ByteBuffer, Long> lockTable = new HashMap<>();
+
 
     private int generation;
 
@@ -60,9 +64,9 @@ public class LsmDAOImpl implements LsmDAO {
                             ssTables.put(gen, new SSTable(file.toFile()));
                         } catch (IOException e) {
                             e.printStackTrace();
-                            log.log(Level.INFO, "Something went wrong while the SSTable was created!", e);
+                            logger.error( "Something went wrong while the SSTable was created!", e);
                         } catch (NumberFormatException e) {
-                            log.log(Level.INFO, "Unexpected name of SSTable file: " + fileName, e);
+                            logger.info("Unexpected name of SSTable file: " + fileName, e);
                         }
                     });
             ++generation;
@@ -114,7 +118,7 @@ public class LsmDAOImpl implements LsmDAO {
                     try {
                         Files.delete(f);
                     } catch (IOException e) {
-                        log.log(Level.WARNING, "Unable to delete file: " + f.getFileName().toFile().toString(), e);
+                        logger.warn("Unable to delete file: " + f.getFileName().toFile().toString(), e);
                     }
                 });
         }
@@ -140,7 +144,7 @@ public class LsmDAOImpl implements LsmDAO {
             try {
                 iters.add(ssTable.iterator(from));
             } catch (IOException e) {
-                log.log(Level.INFO, "Something went wrong when the SSTable iterator was added to list iter!", e);
+                logger.error("Something went wrong when the SSTable iterator was added to list iter!", e);
             }
         });
 

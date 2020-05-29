@@ -1,6 +1,8 @@
 package ru.mail.polis.zvladn7;
 
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,12 +12,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class SSTable implements Table {
 
-    private static final Logger log = Logger.getLogger(LsmDAOImpl.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(SSTable.class);
 
     private final int shiftToOffsetsArray;
     private final int amountOfElements;
@@ -177,7 +177,7 @@ public class SSTable implements Table {
             try {
                 position = getElementPosition(from.rewind());
             } catch (IOException e) {
-                log.log(Level.INFO, "SSTable's iterator cannot correctly get 'from' position", e);
+                logger.info("SSTable's iterator cannot correctly get 'from' position", e);
             }
         }
 
@@ -191,7 +191,7 @@ public class SSTable implements Table {
             try {
                 return get(position++);
             } catch (IOException e) {
-                log.log(Level.INFO, "SSTable's iterator cannot get a cell because it has no more elements", e);
+                logger.info("SSTable's iterator cannot get a cell because it has no more elements", e);
                 throw new RuntimeException(e);
             }
         }
@@ -202,7 +202,7 @@ public class SSTable implements Table {
         try {
             fileChannel.close();
         } catch (IOException e) {
-            log.log(Level.WARNING, "The error was happened when the file channel was closed", e);
+            logger.warn("The error was happened when the file channel was closed", e);
         }
     }
 }

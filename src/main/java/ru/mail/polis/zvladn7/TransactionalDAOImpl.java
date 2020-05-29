@@ -2,6 +2,8 @@ package ru.mail.polis.zvladn7;
 
 import com.google.common.collect.Iterators;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.mail.polis.Iters;
 import ru.mail.polis.Record;
 
@@ -14,19 +16,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 final class TransactionalDAOImpl implements TransactionalDAO {
 
-    private static final Logger logger = Logger.getLogger(TransactionalDAOImpl.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(TransactionalDAOImpl.class);
     private static long nextId;
 
     private final Long id;
     private final MemoryTable memoryTable;
     private final LsmDAOImpl dao;
-    private static Map<ByteBuffer, Long> lockTable = new HashMap<>();
 
     /**
      * TransactionalDAO implementation.
@@ -49,7 +48,7 @@ final class TransactionalDAOImpl implements TransactionalDAO {
 
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "The error occurred while transaction was trying to commit, id: " + id, e);
+                logger.error("The error occurred while transaction was trying to commit, id: " + id, e);
             }
         });
     }
@@ -114,16 +113,16 @@ final class TransactionalDAOImpl implements TransactionalDAO {
     }
 
     private void lock(@NotNull final ByteBuffer key) {
-        final Long lockId = lockTable.putIfAbsent(key, id);
+        final Long lockId = dao.lockTable.putIfAbsent(key, id);
         if (lockId != null && !id.equals(lockId)) {
             rollback();
-            logger.log(Level.INFO,"Transaction with id: {0} was rolled back!", id);
+            logger.warn("Transaction with id: {} was rolled back!", id);
             throw new ConcurrentModificationException("The key has been already locked by another transaction!");
         }
     }
 
-    private static void unlockKeys(@NotNull final Long id) {
-        lockTable = lockTable.entrySet()
+    private void unlockKeys(@NotNull final Long id) {
+        dao.lockTable = dao.lockTable.entrySet()
                 .stream()
                 .filter(entry -> !entry.getValue().equals(id))
                 .collect(
