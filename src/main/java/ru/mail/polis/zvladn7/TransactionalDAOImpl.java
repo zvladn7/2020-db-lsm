@@ -122,16 +122,6 @@ final class TransactionalDAOImpl implements TransactionalDAO {
     }
 
     private void unlockKeys(@NotNull final Long id) {
-        dao.lockTable = dao.lockTable.entrySet()
-                .stream()
-                .filter(entry -> !entry.getValue().equals(id))
-                .collect(
-                        Collectors.toMap(
-                                Map.Entry::getKey,
-                                Map.Entry::getValue,
-                                (prev, next) -> next,
-                                HashMap::new
-                        )
-                );
+        dao.lockTable.entrySet().removeIf(entry -> entry.getValue().equals(id));
     }
 }
